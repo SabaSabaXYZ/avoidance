@@ -40,7 +40,12 @@ packages:
 # - git: https://github.com/commercialhaskell/stack.git
 #   commit: e7b331f14bcffb8367cd58fbfc8b40ec7642100a
 #
-# extra-deps: []
+extra-deps:
+  - QuickCheck-2.13.2@sha256:636e7265bf75122e7e2f97627c47aad3b772ee3b35b134cafb6095116ce8d07a,6974
+  - ansi-terminal-game-1.0.0.0@sha256:5c5e8c9b85d687df33e3c1d5bd1dd2798d776c6d36786cca4ceea97cd20dc0f4,5669
+  - linebreak-1.0.0.3@sha256:3152802008e06f8444d364f6e1047b412e3cb692c1382b1657a425d72a0cfd5f,788
+  - splitmix-0.0.5@sha256:4a49661be63f5aea0e132e9ab51be918789bb4dceb4ab9b15b85ba9cbbef5999,5412
+  - timers-tick-0.4.2.0@sha256:01a46ccd46609327f23f2cb645f28e3273b1dfbc67018616da00acae5aaeafaf,1496
 
 # Override default flag values for local packages and extra-deps
 # flags: {}
