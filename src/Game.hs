@@ -3,27 +3,13 @@ module Game where
 import Data.Bifunctor (bimap)
 import qualified Terminal.Game as G
 
-newtype Velocity = Velocity { getVelocity :: (G.Row, G.Column) } deriving (Eq)
-
-instance Semigroup Velocity where
-  (Velocity (x1, y1)) <> (Velocity (x2, y2)) = Velocity $ (addLimit x1 x2, addLimit y1 y2) where
-    addLimit a b
-      | a + b > 1 = 1
-      | a + b < -1 = -1
-      | otherwise = a + b
-
-instance Monoid Velocity where
-  mempty = Velocity (0, 0)
-
 data Direction = U | D | L | R deriving (Eq)
 
 data Player
 data Box
 data Enemy
 
-data Character t = Character { entityCoords :: !G.Coords
-                             , entityVelocity :: !Velocity
-                             }
+newtype Character t = Character { entityCoords :: G.Coords }
 
 drawPlayer :: Character Player -> (G.Coords, G.Plane)
 drawPlayer character = (entityCoords character, G.cell '&')
@@ -65,10 +51,10 @@ centreCoords :: G.Coords
 centreCoords = bimap (+ fst topLeftBoundary) (+ snd topLeftBoundary) $ fmap (flip div 2) (fst bottomRightBoundary - fst topLeftBoundary, snd bottomRightBoundary - snd topLeftBoundary)
 
 initPlayer :: Character Player
-initPlayer = Character { entityCoords = centreCoords, entityVelocity = mempty }
+initPlayer = Character { entityCoords = centreCoords }
 
 initBox :: Character Box
-initBox = Character { entityCoords = limitCoords $ bimap (+ 1) (+ 1) centreCoords, entityVelocity = mempty }
+initBox = Character { entityCoords = limitCoords $ bimap (+ 1) (+ 1) centreCoords }
 
 initEnemies :: [Character Enemy]
 initEnemies = mempty
@@ -96,11 +82,11 @@ topLeftBoundary = fst boundaries
 bottomRightBoundary :: G.Coords
 bottomRightBoundary = snd boundaries
 
-directionToVelocity :: Direction -> Velocity
-directionToVelocity U = Velocity (0, -1)
-directionToVelocity D = Velocity (0, 1)
-directionToVelocity L = Velocity (-1, 0)
-directionToVelocity R = Velocity (1, 0)
+moveCharacter :: Direction -> Character t -> Character t
+moveCharacter U character = updatePosition (0, -1) character
+moveCharacter D character = updatePosition (0, 1) character
+moveCharacter L character = updatePosition (-1, 0) character
+moveCharacter R character = updatePosition (1, 0) character
 
 limitCoords :: G.Coords -> G.Coords
 limitCoords (a, b) = (limitRowCoord a, limitColumnCoord b)
@@ -114,9 +100,8 @@ limitCoords (a, b) = (limitRowCoord a, limitColumnCoord b)
       | a > snd bottomRightBoundary = snd bottomRightBoundary
       | otherwise = a
 
-updatePosition :: Character t -> Character t
-updatePosition character = do
-  let Velocity (velocityX, velocityY) = entityVelocity character
+updatePosition :: G.Coords -> Character t -> Character t
+updatePosition (velocityX, velocityY) character = do
   let (oldRow, oldColumn) = entityCoords character
   let newCoords = (oldRow + velocityX, oldColumn + velocityY)
   let boundedCoords = limitCoords newCoords
