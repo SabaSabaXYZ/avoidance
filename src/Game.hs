@@ -4,6 +4,8 @@ import Data.Bifunctor (bimap)
 import Data.Char (toUpper)
 import qualified Terminal.Game as G
 
+data Screen = TitleScreen | HelpScreen | GameScreen deriving (Eq)
+
 data Direction = U | D | L | R | Stop deriving (Eq)
 
 data Player
@@ -28,11 +30,21 @@ drawBorder = do
   let innerBlank = bimap (+ 1) (+ 1) topLeftBoundary G.% G.box ' ' (fst bottomRightBoundary - 2) (snd bottomRightBoundary - 2)
   (topLeftBoundary, outerBorder G.& innerBlank)
 
+drawTitle :: (G.Coords, G.Plane)
+drawTitle = (bimap (flip (-) 3) (flip (-) 6) centreCoords, G.stringPlane "==AVOIDANCE==\n\n\nMove: WASD\nHelp: H\nPlay: P\nQuit: Q")
+
+drawHelp :: (G.Coords, G.Plane)
+drawHelp = (topLeftBoundary, G.textBox "Use W, A, S, and D to move up, left, down, and right respectively.\nPush the box around the screen, making sure that it is not pushed off the edge.\nBox thieves will appear sporadically to steal the box.\nYour objective is to keep the box on-screen for as long as possible.\n\n  P: Player\n  O: Box\n  X: Box Thief" (fst bottomRightBoundary) (snd bottomRightBoundary))
+
+drawBlank :: G.Plane
+drawBlank = G.blankPlane (fst bottomRightBoundary) (snd bottomRightBoundary)
+
 data State = State { statePlayer :: !(Character Player)
                    , stateBox :: !(Character Box)
                    , stateEnemy :: ![Character Enemy]
                    , stateIsQuitting :: !Bool
                    , stateRandomGen :: !G.StdGen
+                   , stateScreen :: !Screen
                    }
 
 gameSettings :: G.StdGen -> G.Game State
@@ -51,6 +63,7 @@ initState stdgen = State { statePlayer = initPlayer
                          , stateEnemy = initEnemies
                          , stateIsQuitting = False
                          , stateRandomGen = stdgen
+                         , stateScreen = TitleScreen
                          }
 
 centreCoords :: G.Coords
@@ -77,20 +90,25 @@ handleTick state = do
   state { statePlayer = moveCharacter (entityDirection player) player }
 
 handleKeyPress :: State -> Char -> State
-handleKeyPress state 'Q' = state { stateIsQuitting = True }
-handleKeyPress state 'W' = state { statePlayer = updateDirection U (statePlayer state) }
-handleKeyPress state 'S' = state { statePlayer = updateDirection D (statePlayer state) }
-handleKeyPress state 'A' = state { statePlayer = updateDirection L (statePlayer state) }
-handleKeyPress state 'D' = state { statePlayer = updateDirection R (statePlayer state) }
+handleKeyPress state@(State { stateScreen = TitleScreen })  'Q' = state { stateIsQuitting = True }
+handleKeyPress state@(State { stateScreen = GameScreen })  'Q' = state { stateScreen = TitleScreen }
+handleKeyPress state@(State { stateScreen = TitleScreen }) 'P' = state { stateScreen = GameScreen }
+handleKeyPress state@(State { stateScreen = TitleScreen }) 'H' = state { stateScreen = HelpScreen }
+handleKeyPress state@(State { stateScreen = HelpScreen }) _ = state { stateScreen = TitleScreen }
+handleKeyPress state@(State { stateScreen = GameScreen }) 'W' = state { statePlayer = updateDirection U (statePlayer state) }
+handleKeyPress state@(State { stateScreen = GameScreen }) 'S' = state { statePlayer = updateDirection D (statePlayer state) }
+handleKeyPress state@(State { stateScreen = GameScreen }) 'A' = state { statePlayer = updateDirection L (statePlayer state) }
+handleKeyPress state@(State { stateScreen = GameScreen }) 'D' = state { statePlayer = updateDirection R (statePlayer state) }
 handleKeyPress state _ = state
 
 render :: State -> G.Plane
-render state = do
+render state@(State { stateScreen = TitleScreen }) = G.mergePlanes drawBlank $ drawTitle : []
+render state@(State { stateScreen = HelpScreen }) = G.mergePlanes drawBlank $ drawHelp : []
+render state@(State { stateScreen = GameScreen }) = do
   let playerPlane = drawPlayer $ statePlayer state
   let boxPlane = drawBox $ stateBox state
   let enemyPlanes = drawEnemy <$> stateEnemy state
-  let blank = G.blankPlane (fst bottomRightBoundary) (snd bottomRightBoundary)
-  G.mergePlanes blank $ drawBorder : playerPlane : boxPlane : enemyPlanes
+  G.mergePlanes drawBlank $ drawBorder : playerPlane : boxPlane : enemyPlanes
 
 shouldQuit :: State -> Bool
 shouldQuit = stateIsQuitting
