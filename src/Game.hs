@@ -2,6 +2,7 @@ module Game (gameSettings, G.getStdGen, G.playGame) where
 
 import Data.Bifunctor (bimap)
 import Data.Char (toUpper)
+import Data.Maybe (listToMaybe)
 import System.Random (Random(..))
 import qualified Terminal.Game as G
 
@@ -101,7 +102,7 @@ handleTick state@(State { stateScreen = GameScreen }) = do
   let stateAfterEnemies = handleEnemies state
   let oldPlayer = statePlayer state
   let player = moveCharacter (entityDirection oldPlayer) oldPlayer
-  let box = handleCollision player (stateBox stateAfterEnemies)
+  let box = handleCollision player $ handleCollisions (stateEnemy stateAfterEnemies) (stateBox stateAfterEnemies)
   let newScore = stateScore stateAfterEnemies + 1
   if isOutOfBounds box then stateAfterEnemies { stateScreen = TitleScreen }
                        else stateAfterEnemies { statePlayer = player, stateBox = box, stateScore = newScore, stateDifficulty = div newScore 200 + 1 }
@@ -201,6 +202,13 @@ updatePosition (velocityRow, velocityColumn) character = do
 willCollide :: Direction -> G.Coords -> G.Coords -> Bool
 willCollide Stop _ _ = False
 willCollide _ first second = first == second
+
+handleCollisions :: [Character Enemy] -> Character Box -> Character Box
+handleCollisions enemies box = do
+  let matchingEnemy = listToMaybe $ filter (\enemy -> willCollide (entityDirection enemy) (entityCoords enemy) (entityCoords box)) enemies
+  case matchingEnemy of
+    Nothing -> box
+    Just enemy -> moveCharacter (entityDirection enemy) box
 
 handleCollision :: Character t -> Character Box -> Character Box
 handleCollision (Character { entityCoords = coords, entityDirection = direction }) box
