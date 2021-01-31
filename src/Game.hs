@@ -50,10 +50,11 @@ drawBlank = G.blankPlane (fst bottomRightBoundary) (snd bottomRightBoundary)
 data State = State { statePlayer :: !(Character Player)
                    , stateBox :: !(Character Box)
                    , stateEnemy :: ![Character Enemy]
+                   , stateDifficulty :: !Int
                    , stateIsQuitting :: !Bool
                    , stateRandomGen :: !G.StdGen
                    , stateScreen :: !Screen
-                   , stateScore :: !Integer
+                   , stateScore :: !Int
                    }
 
 gameSettings :: G.StdGen -> G.Game State
@@ -70,6 +71,7 @@ initState :: G.StdGen -> State
 initState stdgen = State { statePlayer = initPlayer
                          , stateBox = initBox
                          , stateEnemy = initEnemies
+                         , stateDifficulty = 1
                          , stateIsQuitting = False
                          , stateRandomGen = stdgen
                          , stateScreen = TitleScreen
@@ -100,15 +102,16 @@ handleTick state@(State { stateScreen = GameScreen }) = do
   let oldPlayer = statePlayer state
   let player = moveCharacter (entityDirection oldPlayer) oldPlayer
   let box = handleCollision player (stateBox stateAfterEnemies)
+  let newScore = stateScore stateAfterEnemies + 1
   if isOutOfBounds box then stateAfterEnemies { stateScreen = TitleScreen }
-                       else stateAfterEnemies { statePlayer = player, stateBox = box, stateScore = stateScore stateAfterEnemies + 1 }
+                       else stateAfterEnemies { statePlayer = player, stateBox = box, stateScore = newScore, stateDifficulty = div newScore 200 + 1 }
 handleTick state = state
 
 handleEnemies :: State -> State
 handleEnemies state = do
   let oldEnemies = stateEnemy state
   let randomGen1 = stateRandomGen state
-  let maxEnemies = 5
+  let maxEnemies = stateDifficulty state
   let (enemiesToCreate, randomGen2) = G.getRandom (0, maxEnemies - length oldEnemies) randomGen1
   let (newRandomEnemies, randomGen3) = createEnemies enemiesToCreate (oldEnemies, randomGen2)
   let updatedEnemies = moveEnemies newRandomEnemies
@@ -135,7 +138,7 @@ enemyStartPosition randomGen R = let (row, newRandomGen) = G.getRandom (snd topL
 
 handleKeyPress :: State -> Char -> State
 handleKeyPress state@(State { stateScreen = TitleScreen }) 'Q' = state { stateIsQuitting = True }
-handleKeyPress state@(State { stateScreen = TitleScreen }) 'P' = state { statePlayer = initPlayer, stateBox = initBox, stateEnemy = initEnemies, stateScreen = GameScreen, stateScore = 0 }
+handleKeyPress state@(State { stateScreen = TitleScreen }) 'P' = state { statePlayer = initPlayer, stateBox = initBox, stateEnemy = initEnemies, stateDifficulty = 1, stateScreen = GameScreen, stateScore = 0 }
 handleKeyPress state@(State { stateScreen = TitleScreen }) 'H' = state { stateScreen = HelpScreen }
 handleKeyPress state@(State { stateScreen = HelpScreen }) _ = state { stateScreen = TitleScreen }
 handleKeyPress state@(State { stateScreen = GameScreen }) 'Q' = state { stateScreen = TitleScreen }
