@@ -1,6 +1,7 @@
 module Game where
 
 import Data.Bifunctor (bimap)
+import Data.Char (toUpper)
 import qualified Terminal.Game as G
 
 data Direction = U | D | L | R deriving (Eq)
@@ -60,7 +61,19 @@ initEnemies :: [Character Enemy]
 initEnemies = mempty
 
 handleEvent :: State -> G.Event -> State
-handleEvent state _ = state
+handleEvent state G.Tick = handleTick state
+handleEvent state (G.KeyPress key) = handleKeyPress state $ toUpper key
+
+handleTick :: State -> State
+handleTick state = state
+
+handleKeyPress :: State -> Char -> State
+handleKeyPress state 'Q' = state { stateIsQuitting = True }
+handleKeyPress state 'W' = state { statePlayer = moveCharacter U (statePlayer state) }
+handleKeyPress state 'S' = state { statePlayer = moveCharacter D (statePlayer state) }
+handleKeyPress state 'A' = state { statePlayer = moveCharacter L (statePlayer state) }
+handleKeyPress state 'D' = state { statePlayer = moveCharacter R (statePlayer state) }
+handleKeyPress state _ = state
 
 render :: State -> G.Plane
 render state = do
