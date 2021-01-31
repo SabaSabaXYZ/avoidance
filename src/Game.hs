@@ -1,4 +1,4 @@
-module Game where
+module Game (gameSettings, G.getStdGen, G.playGame) where
 
 import Data.Bifunctor (bimap)
 import Data.Char (toUpper)
@@ -87,7 +87,7 @@ shouldQuit :: State -> Bool
 shouldQuit = stateIsQuitting
 
 boundaries :: (G.Coords, G.Coords)
-boundaries = ((1, 1), (24, 80))
+boundaries = ((1, 1), (80, 24))
 
 topLeftBoundary :: G.Coords
 topLeftBoundary = fst boundaries

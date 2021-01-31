@@ -3,4 +3,4 @@ module Main where
 import Game
 
 main :: IO ()
-main = putStrLn "Hello World"
+main = getStdGen >>= playGame . gameSettings
