@@ -1,4 +1,4 @@
-module Game (gameSettings, G.getStdGen, G.playGame, centreCoords) where
+module Game (gameSettings, G.getStdGen, G.playGame) where
 
 import Data.Bifunctor (bimap)
 import Data.Char (toUpper)
@@ -85,16 +85,19 @@ handleEvent state (G.KeyPress key) = handleKeyPress state $ toUpper key
 handleEvent state G.Tick = handleTick state
 
 handleTick :: State -> State
-handleTick state = do
-  let player = statePlayer state
-  state { statePlayer = moveCharacter (entityDirection player) player }
+handleTick state@(State { stateScreen = GameScreen }) = do
+  let oldPlayer = statePlayer state
+  let player = moveCharacter (entityDirection oldPlayer) oldPlayer
+  let box = handleCollision player (stateBox state)
+  state { statePlayer = player, stateBox = box }
+handleTick state = state
 
 handleKeyPress :: State -> Char -> State
 handleKeyPress state@(State { stateScreen = TitleScreen })  'Q' = state { stateIsQuitting = True }
-handleKeyPress state@(State { stateScreen = GameScreen })  'Q' = state { stateScreen = TitleScreen }
-handleKeyPress state@(State { stateScreen = TitleScreen }) 'P' = state { stateScreen = GameScreen }
+handleKeyPress state@(State { stateScreen = TitleScreen }) 'P' = state { statePlayer = initPlayer, stateBox = initBox, stateEnemy = initEnemies, stateScreen = GameScreen }
 handleKeyPress state@(State { stateScreen = TitleScreen }) 'H' = state { stateScreen = HelpScreen }
 handleKeyPress state@(State { stateScreen = HelpScreen }) _ = state { stateScreen = TitleScreen }
+handleKeyPress state@(State { stateScreen = GameScreen }) 'Q' = state { stateScreen = TitleScreen }
 handleKeyPress state@(State { stateScreen = GameScreen }) 'W' = state { statePlayer = updateDirection U (statePlayer state) }
 handleKeyPress state@(State { stateScreen = GameScreen }) 'S' = state { statePlayer = updateDirection D (statePlayer state) }
 handleKeyPress state@(State { stateScreen = GameScreen }) 'A' = state { statePlayer = updateDirection L (statePlayer state) }
@@ -145,8 +148,17 @@ limitCoords (a, b) = (limitRowCoord a, limitColumnCoord b)
       | otherwise = a
 
 updatePosition :: G.Coords -> Character t -> Character t
-updatePosition (velocityX, velocityY) character = do
+updatePosition (velocityRow, velocityColumn) character = do
   let (oldRow, oldColumn) = entityCoords character
-  let newCoords = (oldRow + velocityX, oldColumn + velocityY)
+  let newCoords = (oldRow + velocityRow, oldColumn + velocityColumn)
   let boundedCoords = limitCoords newCoords
   character { entityCoords = boundedCoords }
+
+willCollide :: Direction -> G.Coords -> G.Coords -> Bool
+willCollide Stop _ _ = False
+willCollide _ first second = first == second
+
+handleCollision :: Character t -> Character Box -> Character Box
+handleCollision (Character { entityCoords = coords, entityDirection = direction }) box
+  | willCollide direction coords (entityCoords box) = moveCharacter direction box
+  | otherwise = box
