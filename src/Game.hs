@@ -94,7 +94,8 @@ handleTick state@(State { stateScreen = GameScreen }) = do
   let oldPlayer = statePlayer state
   let player = moveCharacter (entityDirection oldPlayer) oldPlayer
   let box = handleCollision player (stateBox state)
-  state { statePlayer = player, stateBox = box, stateScore = stateScore state + 1 }
+  if isOutOfBounds box then state { stateScreen = TitleScreen }
+                       else state { statePlayer = player, stateBox = box, stateScore = stateScore state + 1 }
 handleTick state = state
 
 handleKeyPress :: State -> Char -> State
@@ -110,8 +111,8 @@ handleKeyPress state@(State { stateScreen = GameScreen }) 'D' = state { statePla
 handleKeyPress state _ = state
 
 render :: State -> G.Plane
-render state@(State { stateScreen = TitleScreen }) = G.mergePlanes drawBlank $ drawTitle : []
-render state@(State { stateScreen = HelpScreen }) = G.mergePlanes drawBlank $ drawHelp : []
+render state@(State { stateScreen = TitleScreen }) = G.mergePlanes drawBlank $ drawTitle : drawScore state : []
+render state@(State { stateScreen = HelpScreen }) = G.mergePlanes drawBlank $ drawHelp : drawScore state : []
 render state@(State { stateScreen = GameScreen }) = do
   let playerPlane = drawPlayer $ statePlayer state
   let boxPlane = drawBox $ stateBox state
@@ -167,3 +168,6 @@ handleCollision :: Character t -> Character Box -> Character Box
 handleCollision (Character { entityCoords = coords, entityDirection = direction }) box
   | willCollide direction coords (entityCoords box) = moveCharacter direction box
   | otherwise = box
+
+isOutOfBounds :: Character Box -> Bool
+isOutOfBounds (Character { entityCoords = (row, column) }) = row == fst topLeftBoundary || column == snd topLeftBoundary || row == snd bottomRightBoundary || column == fst bottomRightBoundary
