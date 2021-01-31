@@ -2,11 +2,16 @@ module Game (gameSettings, G.getStdGen, G.playGame) where
 
 import Data.Bifunctor (bimap)
 import Data.Char (toUpper)
+import System.Random (Random(..))
 import qualified Terminal.Game as G
 
 data Screen = TitleScreen | HelpScreen | GameScreen deriving (Eq)
 
-data Direction = U | D | L | R | Stop deriving (Eq)
+data Direction = U | D | L | R | Stop deriving (Eq, Bounded, Enum)
+
+instance Random Direction where
+  random g = randomR (U, R) g
+  randomR (lower, upper) g = case randomR (fromEnum lower, fromEnum upper) g of (r, g') -> (toEnum r, g')
 
 data Player
 data Box
@@ -91,15 +96,45 @@ handleEvent state G.Tick = handleTick state
 
 handleTick :: State -> State
 handleTick state@(State { stateScreen = GameScreen }) = do
+  let stateAfterEnemies = handleEnemies state
   let oldPlayer = statePlayer state
   let player = moveCharacter (entityDirection oldPlayer) oldPlayer
-  let box = handleCollision player (stateBox state)
-  if isOutOfBounds box then state { stateScreen = TitleScreen }
-                       else state { statePlayer = player, stateBox = box, stateScore = stateScore state + 1 }
+  let box = handleCollision player (stateBox stateAfterEnemies)
+  if isOutOfBounds box then stateAfterEnemies { stateScreen = TitleScreen }
+                       else stateAfterEnemies { statePlayer = player, stateBox = box, stateScore = stateScore stateAfterEnemies + 1 }
 handleTick state = state
 
+handleEnemies :: State -> State
+handleEnemies state = do
+  let oldEnemies = stateEnemy state
+  let randomGen1 = stateRandomGen state
+  let maxEnemies = 5
+  let (enemiesToCreate, randomGen2) = G.getRandom (0, maxEnemies - length oldEnemies) randomGen1
+  let (newRandomEnemies, randomGen3) = createEnemies enemiesToCreate (oldEnemies, randomGen2)
+  let updatedEnemies = moveEnemies newRandomEnemies
+  state { stateEnemy = updatedEnemies, stateRandomGen = randomGen3 }
+
+moveEnemies :: [Character Enemy] -> [Character Enemy]
+moveEnemies = filter (not . isOutOfBounds) . fmap (\character -> moveCharacter (entityDirection character) character)
+
+createEnemies :: Int -> ([Character Enemy], G.StdGen) -> ([Character Enemy], G.StdGen)
+createEnemies 0 (enemies, randomGen) = (enemies, randomGen)
+createEnemies enemiesToCreate (enemies, randomGen) = let (enemy, newRandomGen) = createEnemy randomGen in createEnemies (enemiesToCreate - 1) (enemy : enemies, newRandomGen)
+
+createEnemy :: G.StdGen -> (Character Enemy, G.StdGen)
+createEnemy randomGen = do
+  let (randomDirection, randomGen1) = random randomGen
+  let (position, randomGen2) = enemyStartPosition randomGen1 randomDirection
+  (Character { entityCoords = position, entityDirection = randomDirection }, randomGen2)
+
+enemyStartPosition :: G.StdGen -> Direction -> (G.Coords, G.StdGen)
+enemyStartPosition randomGen U = let (column, newRandomGen) = G.getRandom (fst topLeftBoundary, fst bottomRightBoundary) randomGen in ((snd bottomRightBoundary, column), newRandomGen)
+enemyStartPosition randomGen D = let (column, newRandomGen) = G.getRandom (fst topLeftBoundary, fst bottomRightBoundary) randomGen in ((snd topLeftBoundary, column), newRandomGen)
+enemyStartPosition randomGen L = let (row, newRandomGen) = G.getRandom (snd topLeftBoundary, snd bottomRightBoundary) randomGen in ((row, fst bottomRightBoundary), newRandomGen)
+enemyStartPosition randomGen R = let (row, newRandomGen) = G.getRandom (snd topLeftBoundary, snd bottomRightBoundary) randomGen in ((row, fst topLeftBoundary), newRandomGen)
+
 handleKeyPress :: State -> Char -> State
-handleKeyPress state@(State { stateScreen = TitleScreen })  'Q' = state { stateIsQuitting = True }
+handleKeyPress state@(State { stateScreen = TitleScreen }) 'Q' = state { stateIsQuitting = True }
 handleKeyPress state@(State { stateScreen = TitleScreen }) 'P' = state { statePlayer = initPlayer, stateBox = initBox, stateEnemy = initEnemies, stateScreen = GameScreen, stateScore = 0 }
 handleKeyPress state@(State { stateScreen = TitleScreen }) 'H' = state { stateScreen = HelpScreen }
 handleKeyPress state@(State { stateScreen = HelpScreen }) _ = state { stateScreen = TitleScreen }
@@ -169,5 +204,5 @@ handleCollision (Character { entityCoords = coords, entityDirection = direction 
   | willCollide direction coords (entityCoords box) = moveCharacter direction box
   | otherwise = box
 
-isOutOfBounds :: Character Box -> Bool
+isOutOfBounds :: Character t -> Bool
 isOutOfBounds (Character { entityCoords = (row, column) }) = row == fst topLeftBoundary || column == snd topLeftBoundary || row == snd bottomRightBoundary || column == fst bottomRightBoundary

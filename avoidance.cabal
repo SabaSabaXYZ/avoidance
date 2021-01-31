@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: a487f145932021e6d83c8b3989b615bddbb0c6e27ff93006bc87b13e7840fbcd
+-- hash: 87a537766b62d585df8459c87acf35954734419e1001087d8ee7a31a18ef7b8e
 
 name:           avoidance
 version:        0.1.0.0
@@ -35,6 +35,7 @@ library
   build-depends:
       ansi-terminal-game ==1.0.0.0
     , base >=4.7 && <5
+    , random ==1.1
   default-language: Haskell2010
 
 executable avoidance
@@ -48,6 +49,7 @@ executable avoidance
       ansi-terminal-game ==1.0.0.0
     , avoidance
     , base >=4.7 && <5
+    , random ==1.1
   default-language: Haskell2010
 
 test-suite avoidance-test
@@ -62,4 +64,5 @@ test-suite avoidance-test
       ansi-terminal-game ==1.0.0.0
     , avoidance
     , base >=4.7 && <5
+    , random ==1.1
   default-language: Haskell2010
