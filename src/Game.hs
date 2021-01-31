@@ -68,11 +68,13 @@ initEnemies :: [Character Enemy]
 initEnemies = mempty
 
 handleEvent :: State -> G.Event -> State
-handleEvent state G.Tick = handleTick state
 handleEvent state (G.KeyPress key) = handleKeyPress state $ toUpper key
+handleEvent state G.Tick = handleTick state
 
 handleTick :: State -> State
-handleTick state = state
+handleTick state = do
+  let player = statePlayer state
+  state { statePlayer = moveCharacter (entityDirection player) player }
 
 handleKeyPress :: State -> Char -> State
 handleKeyPress state 'Q' = state { stateIsQuitting = True }
@@ -103,13 +105,14 @@ bottomRightBoundary :: G.Coords
 bottomRightBoundary = snd boundaries
 
 updateDirection :: Direction -> Character t -> Character t
-updateDirection direction character = character { entityDirection = direction }
+updateDirection direction character@(Character { entityDirection = currentDirection }) = character { entityDirection = if direction == currentDirection then Stop else direction }
 
 moveCharacter :: Direction -> Character t -> Character t
 moveCharacter U character = updatePosition (-1, 0) character
 moveCharacter D character = updatePosition (1, 0) character
 moveCharacter L character = updatePosition (0, -1) character
 moveCharacter R character = updatePosition (0, 1) character
+moveCharacter _ character = character
 
 limitCoords :: G.Coords -> G.Coords
 limitCoords (a, b) = (limitRowCoord a, limitColumnCoord b)
