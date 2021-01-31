@@ -30,6 +30,9 @@ drawBorder = do
   let innerBlank = bimap (+ 1) (+ 1) topLeftBoundary G.% G.box ' ' (fst bottomRightBoundary - 2) (snd bottomRightBoundary - 2)
   (topLeftBoundary, outerBorder G.& innerBlank)
 
+drawScore :: State -> (G.Coords, G.Plane)
+drawScore state = ((snd bottomRightBoundary, fst topLeftBoundary), G.stringPlane $ "Score: " <> show (stateScore state))
+
 drawTitle :: (G.Coords, G.Plane)
 drawTitle = (bimap (flip (-) 3) (flip (-) 6) centreCoords, G.stringPlane "==AVOIDANCE==\n\n\nMove: WASD\nHelp: H\nPlay: P\nQuit: Q")
 
@@ -45,6 +48,7 @@ data State = State { statePlayer :: !(Character Player)
                    , stateIsQuitting :: !Bool
                    , stateRandomGen :: !G.StdGen
                    , stateScreen :: !Screen
+                   , stateScore :: !Integer
                    }
 
 gameSettings :: G.StdGen -> G.Game State
@@ -64,6 +68,7 @@ initState stdgen = State { statePlayer = initPlayer
                          , stateIsQuitting = False
                          , stateRandomGen = stdgen
                          , stateScreen = TitleScreen
+                         , stateScore = 0
                          }
 
 centreCoords :: G.Coords
@@ -89,12 +94,12 @@ handleTick state@(State { stateScreen = GameScreen }) = do
   let oldPlayer = statePlayer state
   let player = moveCharacter (entityDirection oldPlayer) oldPlayer
   let box = handleCollision player (stateBox state)
-  state { statePlayer = player, stateBox = box }
+  state { statePlayer = player, stateBox = box, stateScore = stateScore state + 1 }
 handleTick state = state
 
 handleKeyPress :: State -> Char -> State
 handleKeyPress state@(State { stateScreen = TitleScreen })  'Q' = state { stateIsQuitting = True }
-handleKeyPress state@(State { stateScreen = TitleScreen }) 'P' = state { statePlayer = initPlayer, stateBox = initBox, stateEnemy = initEnemies, stateScreen = GameScreen }
+handleKeyPress state@(State { stateScreen = TitleScreen }) 'P' = state { statePlayer = initPlayer, stateBox = initBox, stateEnemy = initEnemies, stateScreen = GameScreen, stateScore = 0 }
 handleKeyPress state@(State { stateScreen = TitleScreen }) 'H' = state { stateScreen = HelpScreen }
 handleKeyPress state@(State { stateScreen = HelpScreen }) _ = state { stateScreen = TitleScreen }
 handleKeyPress state@(State { stateScreen = GameScreen }) 'Q' = state { stateScreen = TitleScreen }
@@ -111,7 +116,7 @@ render state@(State { stateScreen = GameScreen }) = do
   let playerPlane = drawPlayer $ statePlayer state
   let boxPlane = drawBox $ stateBox state
   let enemyPlanes = drawEnemy <$> stateEnemy state
-  G.mergePlanes drawBlank $ drawBorder : playerPlane : boxPlane : enemyPlanes
+  G.mergePlanes drawBlank $ drawBorder : drawScore state : playerPlane : boxPlane : enemyPlanes
 
 shouldQuit :: State -> Bool
 shouldQuit = stateIsQuitting
