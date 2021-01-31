@@ -25,14 +25,14 @@ data Character t = Character { entityCoords :: !G.Coords
                              , entityVelocity :: !Velocity
                              }
 
-drawPlayer :: Character Player -> G.Plane
-drawPlayer _ = G.cell '&'
+drawPlayer :: Character Player -> (G.Coords, G.Plane)
+drawPlayer character = (entityCoords character, G.cell '&')
 
-drawBox :: Character Box -> G.Plane
-drawBox _ = G.cell 'O'
+drawBox :: Character Box -> (G.Coords, G.Plane)
+drawBox character = (entityCoords character, G.cell 'O')
 
-drawEnemy :: Character Enemy -> G.Plane
-drawEnemy _ = G.cell 'X'
+drawEnemy :: Character Enemy -> (G.Coords, G.Plane)
+drawEnemy character = (entityCoords character, G.cell 'X')
 
 data State = State { stateDirection :: ![Direction]
                    , statePlayer :: !(Character Player)
@@ -74,10 +74,15 @@ initEnemies :: [Character Enemy]
 initEnemies = mempty
 
 handleEvent :: State -> G.Event -> State
-handleEvent = undefined
+handleEvent state _ = state
 
 render :: State -> G.Plane
-render = undefined
+render state = do
+  let playerPlane = drawPlayer $ statePlayer state
+  let boxPlane = drawBox $ stateBox state
+  let enemyPlanes = drawEnemy <$> stateEnemy state
+  let blank = G.blankPlane (fst bottomRightBoundary) (snd bottomRightBoundary)
+  G.mergePlanes blank $ playerPlane : boxPlane : enemyPlanes
 
 shouldQuit :: State -> Bool
 shouldQuit = stateIsQuitting
