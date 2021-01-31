@@ -1,28 +1,34 @@
-module Game (gameSettings, G.getStdGen, G.playGame) where
+module Game (gameSettings, G.getStdGen, G.playGame, centreCoords) where
 
 import Data.Bifunctor (bimap)
 import Data.Char (toUpper)
 import qualified Terminal.Game as G
 
-data Direction = U | D | L | R deriving (Eq)
+data Direction = U | D | L | R | Stop deriving (Eq)
 
 data Player
 data Box
 data Enemy
 
-newtype Character t = Character { entityCoords :: G.Coords }
+data Character t = Character { entityCoords :: !G.Coords
+                             , entityDirection :: !Direction }
 
 drawPlayer :: Character Player -> (G.Coords, G.Plane)
-drawPlayer character = (entityCoords character, G.cell '&')
+drawPlayer character = (entityCoords character, G.color G.Blue G.Vivid $ G.cell 'P')
 
 drawBox :: Character Box -> (G.Coords, G.Plane)
-drawBox character = (entityCoords character, G.cell 'O')
+drawBox character = (entityCoords character, G.color G.Green G.Dull $ G.cell 'O')
 
 drawEnemy :: Character Enemy -> (G.Coords, G.Plane)
-drawEnemy character = (entityCoords character, G.cell 'X')
+drawEnemy character = (entityCoords character, G.color G.Red G.Vivid $ G.cell 'X')
 
-data State = State { stateDirection :: ![Direction]
-                   , statePlayer :: !(Character Player)
+drawBorder :: (G.Coords, G.Plane)
+drawBorder = do
+  let outerBorder = G.box '%' (fst bottomRightBoundary) (snd bottomRightBoundary)
+  let innerBlank = bimap (+ 1) (+ 1) topLeftBoundary G.% G.box ' ' (fst bottomRightBoundary - 2) (snd bottomRightBoundary - 2)
+  (topLeftBoundary, outerBorder G.& innerBlank)
+
+data State = State { statePlayer :: !(Character Player)
                    , stateBox :: !(Character Box)
                    , stateEnemy :: ![Character Enemy]
                    , stateIsQuitting :: !Bool
@@ -40,8 +46,7 @@ gameSettings stdgen = G.Game { G.gScreenWidth = fst bottomRightBoundary
                              }
 
 initState :: G.StdGen -> State
-initState stdgen = State { stateDirection = []
-                         , statePlayer = initPlayer
+initState stdgen = State { statePlayer = initPlayer
                          , stateBox = initBox
                          , stateEnemy = initEnemies
                          , stateIsQuitting = False
@@ -49,13 +54,15 @@ initState stdgen = State { stateDirection = []
                          }
 
 centreCoords :: G.Coords
-centreCoords = bimap (+ fst topLeftBoundary) (+ snd topLeftBoundary) $ fmap (flip div 2) (fst bottomRightBoundary - fst topLeftBoundary, snd bottomRightBoundary - snd topLeftBoundary)
+centreCoords = (centreCoord (snd topLeftBoundary) (snd bottomRightBoundary), centreCoord (fst topLeftBoundary) (fst bottomRightBoundary))
+  where
+    centreCoord lower upper = (+) lower $ flip div 2 $ upper - lower
 
 initPlayer :: Character Player
-initPlayer = Character { entityCoords = centreCoords }
+initPlayer = Character { entityCoords = centreCoords, entityDirection = Stop }
 
 initBox :: Character Box
-initBox = Character { entityCoords = limitCoords $ bimap (+ 1) (+ 1) centreCoords }
+initBox = Character { entityCoords = limitCoords $ bimap (+ 1) (+ 1) centreCoords, entityDirection = Stop }
 
 initEnemies :: [Character Enemy]
 initEnemies = mempty
@@ -69,10 +76,10 @@ handleTick state = state
 
 handleKeyPress :: State -> Char -> State
 handleKeyPress state 'Q' = state { stateIsQuitting = True }
-handleKeyPress state 'W' = state { statePlayer = moveCharacter U (statePlayer state) }
-handleKeyPress state 'S' = state { statePlayer = moveCharacter D (statePlayer state) }
-handleKeyPress state 'A' = state { statePlayer = moveCharacter L (statePlayer state) }
-handleKeyPress state 'D' = state { statePlayer = moveCharacter R (statePlayer state) }
+handleKeyPress state 'W' = state { statePlayer = updateDirection U (statePlayer state) }
+handleKeyPress state 'S' = state { statePlayer = updateDirection D (statePlayer state) }
+handleKeyPress state 'A' = state { statePlayer = updateDirection L (statePlayer state) }
+handleKeyPress state 'D' = state { statePlayer = updateDirection R (statePlayer state) }
 handleKeyPress state _ = state
 
 render :: State -> G.Plane
@@ -81,7 +88,7 @@ render state = do
   let boxPlane = drawBox $ stateBox state
   let enemyPlanes = drawEnemy <$> stateEnemy state
   let blank = G.blankPlane (fst bottomRightBoundary) (snd bottomRightBoundary)
-  G.mergePlanes blank $ playerPlane : boxPlane : enemyPlanes
+  G.mergePlanes blank $ drawBorder : playerPlane : boxPlane : enemyPlanes
 
 shouldQuit :: State -> Bool
 shouldQuit = stateIsQuitting
@@ -95,22 +102,25 @@ topLeftBoundary = fst boundaries
 bottomRightBoundary :: G.Coords
 bottomRightBoundary = snd boundaries
 
+updateDirection :: Direction -> Character t -> Character t
+updateDirection direction character = character { entityDirection = direction }
+
 moveCharacter :: Direction -> Character t -> Character t
-moveCharacter U character = updatePosition (0, -1) character
-moveCharacter D character = updatePosition (0, 1) character
-moveCharacter L character = updatePosition (-1, 0) character
-moveCharacter R character = updatePosition (1, 0) character
+moveCharacter U character = updatePosition (-1, 0) character
+moveCharacter D character = updatePosition (1, 0) character
+moveCharacter L character = updatePosition (0, -1) character
+moveCharacter R character = updatePosition (0, 1) character
 
 limitCoords :: G.Coords -> G.Coords
 limitCoords (a, b) = (limitRowCoord a, limitColumnCoord b)
   where
     limitRowCoord a
-      | a < fst topLeftBoundary = fst topLeftBoundary
-      | a > fst bottomRightBoundary = fst bottomRightBoundary
-      | otherwise = a
-    limitColumnCoord a
       | a < snd topLeftBoundary = snd topLeftBoundary
       | a > snd bottomRightBoundary = snd bottomRightBoundary
+      | otherwise = a
+    limitColumnCoord a
+      | a < fst topLeftBoundary = fst topLeftBoundary
+      | a > fst bottomRightBoundary = fst bottomRightBoundary
       | otherwise = a
 
 updatePosition :: G.Coords -> Character t -> Character t
