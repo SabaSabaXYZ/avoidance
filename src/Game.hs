@@ -4,7 +4,10 @@ import Data.Bifunctor (bimap)
 import Data.Char (toUpper)
 import Data.Maybe (listToMaybe)
 import System.Random (Random(..))
+import qualified Control.Monad.State as S
 import qualified Terminal.Game as G
+
+type RandomState = S.State G.StdGen
 
 data Screen = TitleScreen | HelpScreen | GameScreen deriving (Eq)
 
@@ -113,29 +116,41 @@ handleEnemies state = do
   let oldEnemies = stateEnemy state
   let randomGen1 = stateRandomGen state
   let maxEnemies = stateDifficulty state
-  let (enemiesToCreate, randomGen2) = G.getRandom (0, maxEnemies - length oldEnemies) randomGen1
-  let (newRandomEnemies, randomGen3) = createEnemies enemiesToCreate (oldEnemies, randomGen2)
-  let updatedEnemies = moveEnemies newRandomEnemies
-  state { stateEnemy = updatedEnemies, stateRandomGen = randomGen3 }
+  let (newEnemies, randomGen2) = flip S.runState (stateRandomGen state) $ randomRange (0, maxEnemies - length oldEnemies) >>= flip createEnemies oldEnemies
+  let updatedEnemies = moveEnemies newEnemies
+  state { stateEnemy = updatedEnemies, stateRandomGen = randomGen2 }
 
 moveEnemies :: [Character Enemy] -> [Character Enemy]
 moveEnemies = filter (not . isOutOfBounds) . fmap (\character -> moveCharacter (entityDirection character) character)
 
-createEnemies :: Int -> ([Character Enemy], G.StdGen) -> ([Character Enemy], G.StdGen)
-createEnemies 0 (enemies, randomGen) = (enemies, randomGen)
-createEnemies enemiesToCreate (enemies, randomGen) = let (enemy, newRandomGen) = createEnemy randomGen in createEnemies (enemiesToCreate - 1) (enemy : enemies, newRandomGen)
+createEnemies :: Int -> [Character Enemy] -> RandomState [Character Enemy]
+createEnemies 0 enemies = return enemies
+createEnemies enemiesToCreate enemies = createEnemy >>= createEnemies (enemiesToCreate - 1) . flip (:) enemies
 
-createEnemy :: G.StdGen -> (Character Enemy, G.StdGen)
-createEnemy randomGen = do
-  let (randomDirection, randomGen1) = random randomGen
-  let (position, randomGen2) = enemyStartPosition randomGen1 randomDirection
-  (Character { entityCoords = position, entityDirection = randomDirection }, randomGen2)
+createEnemy :: RandomState (Character Enemy)
+createEnemy = do
+  randomDirection <- randomResult
+  position <- enemyStartPosition randomDirection
+  return $ Character { entityCoords = position, entityDirection = randomDirection }
 
-enemyStartPosition :: G.StdGen -> Direction -> (G.Coords, G.StdGen)
-enemyStartPosition randomGen U = let (column, newRandomGen) = G.getRandom (fst topLeftBoundary, fst bottomRightBoundary) randomGen in ((snd bottomRightBoundary, column), newRandomGen)
-enemyStartPosition randomGen D = let (column, newRandomGen) = G.getRandom (fst topLeftBoundary, fst bottomRightBoundary) randomGen in ((snd topLeftBoundary, column), newRandomGen)
-enemyStartPosition randomGen L = let (row, newRandomGen) = G.getRandom (snd topLeftBoundary, snd bottomRightBoundary) randomGen in ((row, fst bottomRightBoundary), newRandomGen)
-enemyStartPosition randomGen R = let (row, newRandomGen) = G.getRandom (snd topLeftBoundary, snd bottomRightBoundary) randomGen in ((row, fst topLeftBoundary), newRandomGen)
+randomAction :: (Random a) => (G.StdGen -> (a, G.StdGen)) -> RandomState a
+randomAction action = do
+  randomGen <- S.get
+  let (result, randomGenNew) = action randomGen
+  S.put randomGenNew
+  return result
+
+randomResult :: (Random a) => RandomState a
+randomResult = randomAction random
+
+randomRange :: (Random a) => (a, a) -> RandomState a
+randomRange bounds = randomAction $ G.getRandom bounds
+
+enemyStartPosition :: Direction -> RandomState G.Coords
+enemyStartPosition U = randomRange (fst topLeftBoundary, fst bottomRightBoundary) >>= \column -> return (snd bottomRightBoundary, column)
+enemyStartPosition D = randomRange (fst topLeftBoundary, fst bottomRightBoundary) >>= \column -> return (snd topLeftBoundary, column)
+enemyStartPosition L = randomRange (snd topLeftBoundary, snd bottomRightBoundary) >>= \row -> return (row, fst bottomRightBoundary)
+enemyStartPosition R = randomRange (snd topLeftBoundary, snd bottomRightBoundary) >>= \row -> return (row, fst topLeftBoundary)
 
 handleKeyPress :: State -> Char -> State
 handleKeyPress state@(State { stateScreen = TitleScreen }) 'Q' = state { stateIsQuitting = True }
