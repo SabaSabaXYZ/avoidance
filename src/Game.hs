@@ -43,7 +43,7 @@ drawTitle :: (G.Coords, G.Plane)
 drawTitle = (bimap (flip (-) 3) (flip (-) 6) centreCoords, G.stringPlane "==AVOIDANCE==\n\n\nMove: WASD\nHelp: H\nPlay: P\nQuit: Q")
 
 drawHelp :: (G.Coords, G.Plane)
-drawHelp = (topLeftBoundary, G.textBox "Use W, A, S, and D to move up, left, down, and right respectively.\nPush the box around the screen, making sure that it is not pushed off the edge.\nBox thieves will appear sporadically to steal the box.\nYour objective is to keep the box on-screen for as long as possible.\n\n  P: Player\n  O: Box\n  X: Box Thief" (fst bottomRightBoundary) (snd bottomRightBoundary))
+drawHelp = (topLeftBoundary, G.textBox "Use W, A, S, and D to move up, left, down, and right respectively.\nPress Q during an active game to return to the main menu.\nPress Q while on the main menu to terminate the application.\n\nOBJECTIVE:\n\nPush the box around the screen, making sure that it is not pushed off the edge.\nBox thieves will appear sporadically to steal the box.\nYour objective is to keep the box on-screen for as long as possible.\n\n  P: Player\n  O: Box\n  X: Box Thief\n\nPress any key to return to the main menu." (fst bottomRightBoundary) (snd bottomRightBoundary))
 
 drawBlank :: G.Plane
 drawBlank = G.blankPlane (fst bottomRightBoundary) (snd bottomRightBoundary)
