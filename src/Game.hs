@@ -43,7 +43,7 @@ drawTitle :: (G.Coords, G.Plane)
 drawTitle = (bimap (flip (-) 3) (flip (-) 6) centreCoords, G.stringPlane "==AVOIDANCE==\n\n\nMove: WASD\nHelp: H\nPlay: P\nQuit: Q")
 
 drawHelp :: (G.Coords, G.Plane)
-drawHelp = (topLeftBoundary, G.textBox "Use W, A, S, and D to move up, left, down, and right respectively.\nPress a direction key to start moving in that direction, and then press the same key again to stop.\nPush the box around the screen, making sure that it is not pushed off the edge.\nBox thieves will appear sporadically to steal the box.\nYour objective is to keep the box on-screen for as long as possible.\n\n  P: Player\n  O: Box\n  X: Box Thief" (fst bottomRightBoundary) (snd bottomRightBoundary))
+drawHelp = (topLeftBoundary, G.textBox "Use W, A, S, and D to move up, left, down, and right respectively.\nPush the box around the screen, making sure that it is not pushed off the edge.\nBox thieves will appear sporadically to steal the box.\nYour objective is to keep the box on-screen for as long as possible.\n\n  P: Player\n  O: Box\n  X: Box Thief" (fst bottomRightBoundary) (snd bottomRightBoundary))
 
 drawBlank :: G.Plane
 drawBlank = G.blankPlane (fst bottomRightBoundary) (snd bottomRightBoundary)
@@ -105,7 +105,7 @@ handleTick state@(State { stateScreen = GameScreen }) = do
   let box = handleCollision player $ handleCollisions (stateEnemy stateAfterEnemies) (stateBox stateAfterEnemies)
   let newScore = stateScore stateAfterEnemies + 1
   if isOutOfBounds box then stateAfterEnemies { stateScreen = TitleScreen }
-                       else stateAfterEnemies { statePlayer = player, stateBox = box, stateScore = newScore, stateDifficulty = div newScore 200 + 1 }
+                       else stateAfterEnemies { statePlayer = resetDirection player, stateBox = box, stateScore = newScore, stateDifficulty = div newScore 200 + 1 }
 handleTick state = state
 
 handleEnemies :: State -> State
@@ -170,8 +170,11 @@ topLeftBoundary = fst boundaries
 bottomRightBoundary :: G.Coords
 bottomRightBoundary = snd boundaries
 
-updateDirection :: Direction -> Character t -> Character t
-updateDirection direction character@(Character { entityDirection = currentDirection }) = character { entityDirection = if direction == currentDirection then Stop else direction }
+resetDirection :: Character Player -> Character Player
+resetDirection character = character { entityDirection = Stop }
+
+updateDirection :: Direction -> Character Player -> Character Player
+updateDirection direction character = character { entityDirection = direction }
 
 moveCharacter :: Direction -> Character t -> Character t
 moveCharacter U character = updatePosition (-1, 0) character
