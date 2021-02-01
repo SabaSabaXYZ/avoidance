@@ -11,10 +11,10 @@ type RandomState = S.State G.StdGen
 
 data Screen = TitleScreen | HelpScreen | GameScreen deriving (Eq)
 
-data Direction = U | D | L | R | Stop deriving (Eq, Bounded, Enum)
+data Direction = U | D | L | R deriving (Eq, Bounded, Enum)
 
 instance Random Direction where
-  random g = randomR (U, R) g
+  random g = randomR (minBound, maxBound) g
   randomR (lower, upper) g = case randomR (fromEnum lower, fromEnum upper) g of (r, g') -> (toEnum r, g')
 
 data Player
@@ -22,7 +22,7 @@ data Box
 data Enemy
 
 data Character t = Character { entityCoords :: !G.Coords
-                             , entityDirection :: !Direction }
+                             , entityDirection :: !(Maybe Direction) }
 
 drawPlayer :: Character Player -> (G.Coords, G.Plane)
 drawPlayer character = (entityCoords character, G.color G.Blue G.Vivid $ G.cell 'P')
@@ -88,10 +88,10 @@ centreCoords = (centreCoord (snd topLeftBoundary) (snd bottomRightBoundary), cen
     centreCoord lower upper = (+) lower $ flip div 2 $ upper - lower
 
 initPlayer :: Character Player
-initPlayer = Character { entityCoords = centreCoords, entityDirection = Stop }
+initPlayer = Character { entityCoords = centreCoords, entityDirection = Nothing }
 
 initBox :: Character Box
-initBox = Character { entityCoords = limitCoords $ bimap (+ 1) (+ 1) centreCoords, entityDirection = Stop }
+initBox = Character { entityCoords = limitCoords $ bimap (+ 1) (+ 1) centreCoords, entityDirection = Nothing }
 
 initEnemies :: [Character Enemy]
 initEnemies = mempty
@@ -131,7 +131,7 @@ createEnemy :: RandomState (Character Enemy)
 createEnemy = do
   randomDirection <- randomResult
   position <- enemyStartPosition randomDirection
-  return $ Character { entityCoords = position, entityDirection = randomDirection }
+  return $ Character { entityCoords = position, entityDirection = Just randomDirection }
 
 randomAction :: (Random a) => (G.StdGen -> (a, G.StdGen)) -> RandomState a
 randomAction action = do
@@ -186,16 +186,16 @@ bottomRightBoundary :: G.Coords
 bottomRightBoundary = snd boundaries
 
 resetDirection :: Character Player -> Character Player
-resetDirection character = character { entityDirection = Stop }
+resetDirection character = character { entityDirection = Nothing }
 
 updateDirection :: Direction -> Character Player -> Character Player
-updateDirection direction character = character { entityDirection = direction }
+updateDirection direction character = character { entityDirection = Just direction }
 
-moveCharacter :: Direction -> Character t -> Character t
-moveCharacter U character = updatePosition (-1, 0) character
-moveCharacter D character = updatePosition (1, 0) character
-moveCharacter L character = updatePosition (0, -1) character
-moveCharacter R character = updatePosition (0, 1) character
+moveCharacter :: Maybe Direction -> Character t -> Character t
+moveCharacter (Just U) character = updatePosition (-1, 0) character
+moveCharacter (Just D) character = updatePosition (1, 0) character
+moveCharacter (Just L) character = updatePosition (0, -1) character
+moveCharacter (Just R) character = updatePosition (0, 1) character
 moveCharacter _ character = character
 
 limitCoords :: G.Coords -> G.Coords
@@ -217,8 +217,8 @@ updatePosition (velocityRow, velocityColumn) character = do
   let boundedCoords = limitCoords newCoords
   character { entityCoords = boundedCoords }
 
-willCollide :: Direction -> G.Coords -> G.Coords -> Bool
-willCollide Stop _ _ = False
+willCollide :: Maybe Direction -> G.Coords -> G.Coords -> Bool
+willCollide Nothing _ _ = False
 willCollide _ first second = first == second
 
 handleCollisions :: [Character Enemy] -> Character Box -> Character Box
