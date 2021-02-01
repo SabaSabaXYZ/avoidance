@@ -9,9 +9,9 @@ import qualified Terminal.Game as G
 
 type RandomState = S.State G.StdGen
 
-data Screen = TitleScreen | HelpScreen | GameScreen deriving (Eq)
+data Screen = TitleScreen | HelpScreen | GameScreen
 
-data Direction = U | D | L | R deriving (Eq, Bounded, Enum)
+data Direction = U | D | L | R deriving (Bounded, Enum)
 
 instance Random Direction where
   random g = randomR (minBound, maxBound) g
