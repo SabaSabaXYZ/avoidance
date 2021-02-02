@@ -46,7 +46,7 @@ Characters:
 * Quit game: `Q`
 * Help screen: `H`
 
-### Game controls
+#### Game controls
 
 * Move up: `W`
 * Move down: `S`
