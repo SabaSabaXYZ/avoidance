@@ -199,15 +199,11 @@ moveCharacter (Just R) character = updatePosition (0, 1) character
 moveCharacter _ character = character
 
 limitCoords :: G.Coords -> G.Coords
-limitCoords (a, b) = (limitRowCoord a, limitColumnCoord b)
+limitCoords (a, b) = (limitCoord snd a, limitCoord fst b)
   where
-    limitRowCoord a
-      | a < snd topLeftBoundary = snd topLeftBoundary
-      | a > snd bottomRightBoundary = snd bottomRightBoundary
-      | otherwise = a
-    limitColumnCoord a
-      | a < fst topLeftBoundary = fst topLeftBoundary
-      | a > fst bottomRightBoundary = fst bottomRightBoundary
+    limitCoord projection a
+      | a < projection topLeftBoundary = projection topLeftBoundary
+      | a > projection bottomRightBoundary = projection bottomRightBoundary
       | otherwise = a
 
 updatePosition :: G.Coords -> Character t -> Character t
