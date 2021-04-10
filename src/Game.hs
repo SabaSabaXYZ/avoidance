@@ -144,7 +144,7 @@ randomResult :: (Random a) => RandomState a
 randomResult = randomAction random
 
 randomRange :: (Random a) => (a, a) -> RandomState a
-randomRange bounds = randomAction $ G.getRandom bounds
+randomRange = randomAction . G.getRandom
 
 enemyStartPosition :: Direction -> RandomState G.Coords
 enemyStartPosition U = randomRange (fst topLeftBoundary, fst bottomRightBoundary) >>= \column -> return (snd bottomRightBoundary, column)
