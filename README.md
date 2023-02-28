@@ -1,5 +1,7 @@
 # AVOIDANCE
 
+[![Haskell CI](https://github.com/SabaSabaXYZ/avoidance/actions/workflows/haskell.yml/badge.svg)](https://github.com/SabaSabaXYZ/avoidance/actions/workflows/haskell.yml)
+
 ## Images
 
 ![Title](title.png)
